@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://script.google.com/macros/s/AKfycbykGTuF8jTpW0yMxTDpItvKRmvMZnAYswv6t2kRShnf4bmVKkDwEG_0bGks291cnamC"
+      "url": "https://script.google.com/macros/s/AKfycby5yWS8HZKnBJMWq3kV2TVwWTlpYf6KHvLv9_5F-5xnys48T4Fi_krTdZHW8r3-Po5ZnA"
     }
   ],
   "paths": {
