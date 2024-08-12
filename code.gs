@@ -79,7 +79,7 @@ function doGet(e) {
 
     // send an email
     if (e.parameter.sendEmailWithAttachmentByName) {
-        addToLastRow("Call sendEmailWithAttachmentByName");
+        addToLastRow("Call sendEmailWithAttachmentByName: " + + e.parameters);
         let result = sendEmailWithAttachmentByName(e.parameter.email, e.parameter.subject, e.parameter.body, e.parameter.fileName, e.parameter.cc, e.parameter.bcc);
         addToLastRow(JSON.stringify(result));
         return returnJSON(result);
@@ -378,6 +378,40 @@ function getTasks() {
 /**
  * Emails
  */
+
+
+// send email with or without attachment
+function sendEmailWithAttachmentByName(email, subject, body, fileName, cc, bcc) {
+    addToLastRow('sendEmailWithAttachmentByName: ' + JSON.stringify(arguments));
+    let attachments = [];
+    if (fileName) {
+        let files = DriveApp.getFilesByName(fileName);
+        if (files.hasNext()) {
+            let file = files.next();
+            let blob = file.getBlob();
+            attachments.push(blob);
+        } else {
+            Logger.log("No file found with the name: " + fileName);
+            addToLastRow("No file found with the name: " + fileName);
+        }
+    } else {
+        Logger.log("No file name provided.");
+        addToLastRow("No file name provided.")
+    }
+    try {
+        MailApp.sendEmail({
+            to: email,
+            subject: subject,
+            body: body,
+            attachments: attachments || [],
+            cc: cc,
+            bcc: bcc,
+        });
+    } catch (e) {
+        Logger.log("Failed to send email: " + e.message);
+        addToLastRow("Failed to send email: " + e.message);
+    }
+}
 
 
 // schedule an email
