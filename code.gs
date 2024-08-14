@@ -127,6 +127,16 @@ function doGet(e) {
     }
 
     /**
+     * Google Drive
+     */
+
+    if (e.parameter.createDocument) {
+        addToLastRow('Call createDocument: ' + JSON.stringify(e.parameters));
+        let result = createDocument(e.parameter.title, e.parameter.content, e.parameter.emails, e.parameter.accessLevel);
+        return returnJSON(result);
+    }
+
+    /**
      * Maps
      */
 
@@ -602,6 +612,54 @@ function shareCalendarByName(calendarName, userEmail, role) {
         }
     } else {
         Logger.log('Calendar named "%s" not found.', calendarName);
+    }
+}
+
+
+/**
+ * Google Documents
+ */
+
+
+function createDocument(title, content, emails, accessLevel) {
+    try {
+        let doc = DocumentApp.create(title);
+        let docId = doc.getId();
+        Logger.log('Document created with ID: ' + docId); addToLastRow('Document created with ID: ' + docId);
+        let body = doc.getBody();
+        body.setText(content);
+        Logger.log('Document body set to ' + content); addToLastRow('Document body set to ' + content);
+        let file = DriveApp.getFileById(docId);
+        if (emails && accessLevel) {
+            if (!Array.isArray(emails))
+                emails = emails.split(',').map(email => email.trim());
+            emails.forEach(function (email) {
+                switch (accessLevel.toLowerCase()) {
+                    case 'viewer':
+                        file.addViewer(email);
+                        break;
+                    case 'commenter':
+                        file.addCommenter(email);
+                        break;
+                    case 'editor':
+                        file.addEditor(email);
+                        break;
+                    default:
+                        addToLastRow('Invalid access level: ' + accessLevel + '. Must be "viewer", "commenter", or "editor".');
+                        throw new Error('Invalid access level: ' + accessLevel + '. Must be "viewer", "commenter", or "editor".');
+                }
+                Logger.log('Document shared with: ' + email);
+                addToLastRow('Document shared with: ' + email);
+            });
+        }
+        let documentUrl = file.getUrl();
+        Logger.log('Document URL: ' + documentUrl);
+        addToLastRow('Document URL: ' + documentUrl);
+        return documentUrl;
+    } catch (err) {
+        Logger.log('Failed with an error: ' + err.message);
+        addToLastRow('Failed with an error: ' + err.message);
+        return null;
     }
 }
 
