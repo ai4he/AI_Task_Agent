@@ -1,6 +1,5 @@
 const DEBUG = true;
 
-
 function grantAccess() {
     Tasks.Tasklists.list();
     GmailApp.getInboxThreads();
@@ -56,7 +55,7 @@ function doGet(e) {
     // change a subtask's title
     if (e.parameter.changeSubtaskTitle) {
         addToLastRow("Call changeSubtaskTitle");
-        let result = changeSubtaskTitle(e.parameter.subtaskId, e.parameter.newTitle); addToLastRow(JSON.stringify(result));
+        let result = changeSubtaskTitle(e.parameter.subtaskId, e.parameter.newTitle);
         return returnJSON(result);
     }
 
@@ -70,7 +69,7 @@ function doGet(e) {
     // mark a subtask as complited
     if (e.parameter.subtaskmarkasCompleted) {
         addToLastRow("Call subtaskmarkasCompleted");
-        let result = subtaskmarkasCompleted(e.parameter.subtaskId); addToLastRow(JSON.stringify(result));
+        let result = subtaskmarkasCompleted(e.parameter.subtaskId);
         return returnJSON(result);
     }
 
@@ -80,7 +79,7 @@ function doGet(e) {
 
     // send an email
     if (e.parameter.sendEmailWithAttachmentByName) {
-        addToLastRow("Call sendEmailWithAttachmentByName");
+        addToLastRow("Call sendEmailWithAttachmentByName: " + + e.parameters);
         let result = sendEmailWithAttachmentByName(e.parameter.email, e.parameter.subject, e.parameter.body, e.parameter.fileName, e.parameter.cc, e.parameter.bcc);
         addToLastRow(JSON.stringify(result));
         return returnJSON(result);
@@ -107,10 +106,9 @@ function doGet(e) {
 
     // create a calendar event
     if (e.parameter.createCalendarEvent) {
-        addToLastRow("Call createCalendarEvent");
+        addToLastRow("Call createCalendarEvent: " + e.parameters);
         let result = createCalendarEvent(e.parameter.calendarId, e.parameter.summary, e.parameter.location, e.parameter.description, e.parameter.startDateTime,
             e.parameter.endDateTime, e.parameter.timeZone, e.parameter.attendees, e.parameter.requestId, e.parameter.fileNames);
-        addToLastRow(JSON.stringify(result));
         return returnJSON(result);
     }
 
@@ -125,6 +123,16 @@ function doGet(e) {
     if (e.parameter.shareCalendarByName) {
         addToLastRow("Call shareCalendarByName");
         let result = shareCalendarByName(e.parameter.calendarName, e.parameter.userEmail, e.parameter.role); addToLastRow(JSON.stringify(result));
+        return returnJSON(result);
+    }
+
+    /**
+     * Google Drive
+     */
+
+    if (e.parameter.createDocument) {
+        addToLastRow('Call createDocument: ' + JSON.stringify(e.parameters));
+        let result = createDocument(e.parameter.title, e.parameter.content, e.parameter.emails, e.parameter.accessLevel);
         return returnJSON(result);
     }
 
@@ -167,6 +175,19 @@ function execEval(script) {
 }
 
 
+// get the current datetime as a string
+function getTime() {
+    let date = new Date();
+    let year = date.getFullYear();
+    let month = String(date.getMonth() + 1).padStart(2, '0');  // Months are zero-based
+    let day = String(date.getDate()).padStart(2, '0');
+    let hours = String(date.getHours()).padStart(2, '0');
+    let minutes = String(date.getMinutes()).padStart(2, '0');
+    let seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+
 // log to a spreadsheet
 function addToLastRow(value) {
     let text = undefined;
@@ -174,6 +195,7 @@ function addToLastRow(value) {
         text = Object.entries(value).map(([key, values]) => `${key}: ${values.join(', ')}`).join('; ');
     if (value && typeof value !== 'object')
         text = value;
+    text = getTime() + ': ' + text;
     let sheet = SpreadsheetApp.getActiveSheet();
     let lastRow = sheet.getLastRow();
     sheet.getRange(lastRow + 1, 1).setValue(text);
@@ -283,6 +305,7 @@ function changeSubtaskTitle(subtaskId, newTitle) {
             subtask.title = newTitle;
             subtask = Tasks.Tasks.update(subtask, taskListId, subtaskId);
             console.log('Subtask with ID "%s" title updated to "%s".', subtask.id, newTitle);
+            addToLastRow('Subtask with ID "' + subtask.id + '" title updated to ' + newTitle)
         } catch (err) {
             console.log('Failed to update subtask with an error: %s', err.message);
         }
@@ -319,8 +342,10 @@ function subtaskmarkasCompleted(subtaskId) {
             subtask.status = 'completed';
             Tasks.Tasks.update(subtask, taskListId, subtaskId);
             console.log('Task with ID "%s" was marked as completed.', subtaskId);
+            addToLastRow('Task with ID "' + subtaskId + '" was marked as completed.');
         } catch (err) {
             console.log('Failed to mark as complete task with an error %s', err.message);
+            addToLastRow('Failed to mark as complete task with an error ' + err.message);
         }
     } else {
         console.log('No task lists found.');
@@ -363,6 +388,40 @@ function getTasks() {
 /**
  * Emails
  */
+
+
+// send email with or without attachment
+function sendEmailWithAttachmentByName(email, subject, body, fileName, cc, bcc) {
+    addToLastRow('sendEmailWithAttachmentByName: ' + JSON.stringify(arguments));
+    let attachments = [];
+    if (fileName) {
+        let files = DriveApp.getFilesByName(fileName);
+        if (files.hasNext()) {
+            let file = files.next();
+            let blob = file.getBlob();
+            attachments.push(blob);
+        } else {
+            Logger.log("No file found with the name: " + fileName);
+            addToLastRow("No file found with the name: " + fileName);
+        }
+    } else {
+        Logger.log("No file name provided.");
+        addToLastRow("No file name provided.")
+    }
+    try {
+        MailApp.sendEmail({
+            to: email,
+            subject: subject,
+            body: body,
+            attachments: attachments || [],
+            cc: cc,
+            bcc: bcc,
+        });
+    } catch (e) {
+        Logger.log("Failed to send email: " + e.message);
+        addToLastRow("Failed to send email: " + e.message);
+    }
+}
 
 
 // schedule an email
@@ -450,11 +509,13 @@ function deleteEventsByName(eventName) {
 // create a calendar event
 function createCalendarEvent(calendarId, summary = 'No Title', location = 'No Location', description = '', startDateTime, endDateTime, timeZone = 'UTC',
     attendees = [], requestId = '', fileNames = []) {
+    addToLastRow('createCalendarEvent: ' + JSON.stringify(arguments));
     if (!Array.isArray(fileNames)) {
         fileNames = fileNames ? [fileNames] : []; // convert to array if single value; use empty array if undefined/null
     }
     if (!startDateTime || !endDateTime) {
         Logger.log('Missing startDateTime or endDateTime');
+        addToLastRow('Missing startDateTime or endDateTime')
         return;
     }
 
@@ -471,7 +532,9 @@ function createCalendarEvent(calendarId, summary = 'No Title', location = 'No Lo
 
     // append the files links to the event description
     let fullDescription = description + '\n\nAttached Files:\n' + filesDescription;
+    addToLastRow('full description: ' + fullDescription);
 
+    attendees = attendees.split(',').map(email => ({ email }));
     let event = {
         summary: summary,
         location: location,
@@ -494,12 +557,22 @@ function createCalendarEvent(calendarId, summary = 'No Title', location = 'No Lo
             }
         }
     };
+    addToLastRow('event: ' + JSON.stringify(event));
 
-    let createdEvent = Calendar.Events.insert(event, calendarId, { conferenceDataVersion: 1 });
-
-    Logger.log('Event ID: ' + createdEvent.id);
-    Logger.log('Event link: ' + createdEvent.htmlLink);
-    Logger.log('Google Meet link: ' + (createdEvent.hangoutLink || "No Google Meet link available"));
+    try {
+        let createdEvent = Calendar.Events.insert(event, calendarId, {
+            'sendUpdates': 'all',
+            'conferenceDataVersion': 1
+        });
+        addToLastRow('created event: ' + JSON.stringify(createdEvent));
+        Logger.log('Event ID: ' + createdEvent.id);
+        addToLastRow('Event ID: ' + createdEvent.id);
+        Logger.log('Event link: ' + createdEvent.htmlLink);
+        addToLastRow('Event link: ' + createdEvent.htmlLink)
+        Logger.log('Google Meet link: ' + (createdEvent.hangoutLink || "No Google Meet link available"));
+    } catch (e) {
+        addToLastRow(e);
+    }
 }
 
 
@@ -539,6 +612,54 @@ function shareCalendarByName(calendarName, userEmail, role) {
         }
     } else {
         Logger.log('Calendar named "%s" not found.', calendarName);
+    }
+}
+
+
+/**
+ * Google Documents
+ */
+
+
+function createDocument(title, content, emails, accessLevel) {
+    try {
+        let doc = DocumentApp.create(title);
+        let docId = doc.getId();
+        Logger.log('Document created with ID: ' + docId); addToLastRow('Document created with ID: ' + docId);
+        let body = doc.getBody();
+        body.setText(content);
+        Logger.log('Document body set to ' + content); addToLastRow('Document body set to ' + content);
+        let file = DriveApp.getFileById(docId);
+        if (emails && accessLevel) {
+            if (!Array.isArray(emails))
+                emails = emails.split(',').map(email => email.trim());
+            emails.forEach(function (email) {
+                switch (accessLevel.toLowerCase()) {
+                    case 'viewer':
+                        file.addViewer(email);
+                        break;
+                    case 'commenter':
+                        file.addCommenter(email);
+                        break;
+                    case 'editor':
+                        file.addEditor(email);
+                        break;
+                    default:
+                        addToLastRow('Invalid access level: ' + accessLevel + '. Must be "viewer", "commenter", or "editor".');
+                        throw new Error('Invalid access level: ' + accessLevel + '. Must be "viewer", "commenter", or "editor".');
+                }
+                Logger.log('Document shared with: ' + email);
+                addToLastRow('Document shared with: ' + email);
+            });
+        }
+        let documentUrl = file.getUrl();
+        Logger.log('Document URL: ' + documentUrl);
+        addToLastRow('Document URL: ' + documentUrl);
+        return documentUrl;
+    } catch (err) {
+        Logger.log('Failed with an error: ' + err.message);
+        addToLastRow('Failed with an error: ' + err.message);
+        return null;
     }
 }
 

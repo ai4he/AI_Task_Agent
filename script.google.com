@@ -7,13 +7,13 @@
   },
   "servers": [
     {
-      "url": "https://script.google.com/macros/s/AKfycbykGTuF8jTpW0yMxTDpItvKRmvMZnAYswv6t2kRShnf4bmVKkDwEG_0bGks291cnamC"
+      "url": "https://script.google.com/macros/s/AKfycbz3h622BLn_CY7TNVBVmMtEhOTE_0OeHzmmufBjMfhaduQNqASr8Jgc-KnYFTy16LwEkg"
     }
   ],
   "paths": {
     "/exec?execEval=true&": {
       "get": {
-        "description": "Executes the Google Apps Script code in the server",
+        "description": "If other endpoints do not fit the task, you will create code and pass it to this endponit to be executed on the server",
         "operationId": "ExecuteGoogleAppsScript",
         "parameters": [
           {
@@ -598,6 +598,50 @@
           }
         },
         "deprecated": false
+      }
+    },
+    "/exec?createDocument=true&": {
+      "get": {
+        "description": "This method creates a new document in Google Documents",
+        "operationId": "ExcuteCreateDocument",
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "description": "This is the document title",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content",
+            "in": "query",
+            "description": "This is the document content",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "emails",
+            "in": "query",
+            "description": "This is emails to which the document should be shared",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accessLevel",
+            "in": "query",
+            "description": "This is the access level for emails with which the document should be shared, must be viewer, commenter, or editor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/exec?subtaskmarkasCompleted=true&": {
